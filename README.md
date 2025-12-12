@@ -161,7 +161,7 @@ http://localhost:3000/api/docs
 |------|----------|-------------|
 | Platform | Платформа (tiktok, youtube, vk и т.д.) | ✅ |
 | Account URL | Ссылка на аккаунт | ✅ |
-| Account Name | Имя аккаунта | Заполняется автоматически |
+| Account Name | Имя аккаунта | ✅ |
 | Last Checked | Дата последней проверки | Заполняется автоматически |
 
 ### Листы "Metrics {Platform}"
