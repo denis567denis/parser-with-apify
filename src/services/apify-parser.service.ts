@@ -242,31 +242,36 @@ export class ApifyParserService {
   }
 
   /**
-   * Парсит видео с VK профиля используя Apify актор easyapi/vk-video-profile-scraper
+   * Парсит видео с VK профиля используя Apify актор jupri/vkontakte
    * Поддерживает ссылки: https://vkvideo.ru/@username и https://vk.com/username
    */
   async parseVKAccount(accountUrl: string): Promise<VideoMetrics[]> {
     try {
       this.logger.log(`Parsing VK account: ${accountUrl}`);
 
-      // Нормализуем URL для VK Video
-      let normalizedUrl = accountUrl;
-      if (!accountUrl.includes('vkvideo.ru')) {
-        // Если это обычная ссылка vk.com, преобразуем в vkvideo.ru
-        const screenName = parseVKUrl(accountUrl);
-        if (screenName) {
-          normalizedUrl = `https://vkvideo.ru/@${screenName}`;
-        }
+      // Извлекаем username из URL
+      const screenName = parseVKUrl(accountUrl);
+      if (!screenName) {
+        this.logger.error(`Cannot extract username from VK URL: ${accountUrl}`);
+        return [];
       }
 
-      this.logger.log(`Using VK Video URL: ${normalizedUrl}`);
+      // Формируем query в формате @username/videos
+      const query = `@${screenName}/videos`;
+      this.logger.log(`Using VK query: ${query}`);
 
-      // Используем Apify актор easyapi/vk-video-profile-scraper
+      // Используем Apify актор jupri/vkontakte
       const input = {
-        profileUrls: [normalizedUrl],
+        dev_dataset_clear: false,
+        dev_no_strip: false,
+        hd: false,
+        limit: this.videoLimit,
+        query: [query],
+        search_mode: 'video',
+        sort: 'update',
       };
 
-      const run = await this.client.actor('easyapi/vk-video-profile-scraper').call(input);
+      const run = await this.client.actor('jupri/vkontakte').call(input);
       const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
 
       const results: VideoMetrics[] = [];
@@ -275,8 +280,8 @@ export class ApifyParserService {
       for (const item of items) {
         const itemData = item as any;
 
-        // Проверяем что это видео
-        if (!itemData.videoId || !itemData.title) {
+        // Проверяем что это видео с необходимыми данными
+        if (!itemData.title) {
           continue;
         }
 
@@ -287,22 +292,22 @@ export class ApifyParserService {
           continue;
         }
 
-        const accountName = String(itemData.ownerName || itemData.channelName || 'VK User');
-        const vkVideoId = String(itemData.videoId);
+        const accountName = screenName;
+        const vkVideoId = String(itemData.id || itemData.ov_id || '');
         
         results.push({
           id: generateMetricId('vk', accountName, article),
           platform: 'vk' as const,
-          accountUrl: normalizedUrl,
+          accountUrl: `https://vkvideo.ru/@${screenName}`,
           accountName,
-          videoUrl: String(itemData.url || itemData.videoUrl || `https://vk.com/video${vkVideoId}`),
+          videoUrl: String(itemData.share_url || itemData.direct_url || itemData.url || `https://vk.com/video${itemData.owner_id}_${vkVideoId}`),
           videoId: vkVideoId,
           title: String(itemData.title || ''),
-          postDate: itemData.date ? new Date(itemData.date) : (itemData.addedDate ? new Date(itemData.addedDate * 1000) : new Date()),
-          views: parseInt(String(itemData.views || itemData.viewCount || 0)),
-          likes: parseInt(String(itemData.likes || itemData.likesCount || 0)),
-          comments: parseInt(String(itemData.comments || itemData.commentsCount || 0)),
-          shares: parseInt(String(itemData.reposts || itemData.repostsCount || 0)),
+          postDate: new Date(itemData.date * 1000),
+          views: parseInt(String(itemData.views || itemData.local_views || 0)),
+          likes: parseInt(String(itemData.likes?.count || 0)),
+          comments: parseInt(String(itemData.comments || 0)),
+          shares: parseInt(String(itemData.reposts?.count || 0)),
           article,
           collectedAt: now,
           lastUpdated: now,

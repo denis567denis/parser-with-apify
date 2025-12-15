@@ -13,20 +13,30 @@ export class GoogleSheetsService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const credentialsPath = this.configService.get<string>('google.credentialsPath') || './credentials.json';
+      const clientEmail = this.configService.get<string>('google.clientEmail');
+      const privateKey = this.configService.get<string>('google.privateKey');
+      this.spreadsheetId = this.configService.get<string>('google.spreadsheetId') || '';
+
+      if (!clientEmail || !privateKey) {
+        this.logger.error('Google credentials (GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY) are not configured');
+        return;
+      }
+
+      if (!this.spreadsheetId) {
+        this.logger.error('Google Spreadsheet ID is not configured');
+        return;
+      }
+
       const auth = new google.auth.GoogleAuth({
-        keyFile: credentialsPath,
+        credentials: {
+          client_email: clientEmail,
+          private_key: privateKey,
+        },
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
 
       this.sheets = google.sheets({ version: 'v4', auth });
-      this.spreadsheetId = this.configService.get<string>('google.spreadsheetId') || '';
-      
-      if (!this.spreadsheetId) {
-        this.logger.error('Google Spreadsheet ID is not configured');
-      } else {
-        this.logger.log('Google Sheets service initialized successfully');
-      }
+      this.logger.log('Google Sheets service initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize Google Sheets service', error);
     }

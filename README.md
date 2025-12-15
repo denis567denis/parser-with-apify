@@ -7,7 +7,7 @@
 - **TikTok** - видео с аккаунтов
 - **YouTube** - обычные видео
 - **YouTube Shorts** - короткие видео
-- **VK** - видео через Apify актор `easyapi/vk-video-profile-scraper`
+- **VK** - видео через Apify актор `jupri/vkontakte`
 - **Pinterest** - видео контент
 - **Instagram** - видео и reels
 
@@ -21,13 +21,44 @@
 npm install
 ```
 
-### 2. Настройте переменные окружения
+### 2. Настройте Google Sheets API
 
-Создайте файл `.env`:
+#### Шаг 2.1: Создайте Service Account
+
+1. Перейдите в [Google Cloud Console](https://console.cloud.google.com/)
+2. Создайте новый проект или выберите существующий
+3. Включите **Google Sheets API**:
+   - Меню → APIs & Services → Library
+   - Найдите "Google Sheets API" → Enable
+4. Создайте Service Account:
+   - Меню → APIs & Services → Credentials
+   - Create Credentials → Service Account
+   - Заполните имя и нажмите "Create"
+5. Создайте ключ (JSON):
+   - Откройте созданный Service Account
+   - Keys → Add Key → Create New Key → JSON
+   - Скачайте JSON файл
+
+#### Шаг 2.2: Создайте Google таблицу
+
+1. Создайте новую таблицу на [Google Sheets](https://docs.google.com/spreadsheets/)
+2. Скопируйте ID таблицы из URL:
+   ```
+   https://docs.google.com/spreadsheets/d/ВАШ_ID_ТАБЛИЦЫ/edit
+   ```
+3. **Важно!** Откройте доступ для Service Account:
+   - Нажмите "Поделиться" (Share)
+   - Добавьте email из JSON (`client_email`)
+   - Дайте права "Редактор" (Editor)
+
+#### Шаг 2.3: Настройте переменные окружения
+
+Откройте скачанный JSON файл и создайте `.env`:
 
 ```env
-# Google Sheets
-GOOGLE_CREDENTIALS_PATH=./credentials.json
+# Google Sheets API (берите из JSON файла)
+GOOGLE_CLIENT_EMAIL=your-service-account@project-id.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour_Private_Key_Here\n-----END PRIVATE KEY-----\n"
 GOOGLE_SPREADSHEET_ID=ваш_id_таблицы
 
 # Apify (получить на https://apify.com)
@@ -39,12 +70,18 @@ CHECK_INTERVAL_DAYS=1
 PORT=3000
 ```
 
-### 3. Настройте Google Sheets
+**Важно:**
+- `GOOGLE_CLIENT_EMAIL` - скопируйте из поля `client_email` в JSON
+- `GOOGLE_PRIVATE_KEY` - скопируйте из поля `private_key` в JSON (со всеми `\n`)
+- Приватный ключ должен быть в кавычках!
+- ✅ Файл `credentials.json` НЕ НУЖЕН - все данные в переменных окружения!
 
-1. Создайте новую Google таблицу
-2. Получите `credentials.json` для Google Sheets API ([инструкция](https://developers.google.com/sheets/api/quickstart/nodejs))
-3. Поместите `credentials.json` в корень проекта
-4. Скопируйте ID таблицы из URL: `https://docs.google.com/spreadsheets/d/ВАШ_ID/edit`
+### 3. Получите Apify токен
+
+1. Зарегистрируйтесь на [Apify.com](https://apify.com/)
+2. Перейдите в Settings → Integrations
+3. Скопируйте API Token
+4. Вставьте в `.env` файл
 
 ### 4. Запустите приложение
 
@@ -225,9 +262,10 @@ http://localhost:3000/api/docs
 ### Переменные окружения
 
 ```env
-# Google Sheets
-GOOGLE_CREDENTIALS_PATH=./credentials.json
-GOOGLE_SPREADSHEET_ID=your_id
+# Google Sheets API (БЕЗ credentials.json!)
+GOOGLE_CLIENT_EMAIL=your-service-account@project-id.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour_Private_Key\n-----END PRIVATE KEY-----\n"
+GOOGLE_SPREADSHEET_ID=your_spreadsheet_id
 
 # Apify - получить на https://apify.com
 APIFY_API_TOKEN=your_token
@@ -303,7 +341,7 @@ npm run start:prod       # Запуск production
 - `clockworks/tiktok-scraper` - TikTok
 - `streamers/youtube-scraper` - YouTube
 - `streamers/youtube-shorts-scraper` - YouTube Shorts
-- `easyapi/vk-video-profile-scraper` - VK
+- `jupri/vkontakte` - VK (query: `@username/videos`)
 - `danielmilevski9/pinterest-crawler` - Pinterest
 - `apify/instagram-scraper` - Instagram
 
@@ -322,15 +360,16 @@ npm run start:prod       # Запуск production
 ### Быстрый чек-лист:
 
 1. ✅ Установлены зависимости: `npm install`
-2. ✅ Создан `.env` файл
-3. ✅ Получен `credentials.json` для Google Sheets
-4. ✅ Получен Apify токен
-5. ✅ Запущено приложение: `npm run start:dev`
-6. ✅ Открыт Swagger UI: `http://localhost:3000/api/docs`
-7. ✅ Выполнен `POST /sheets/init`
-8. ✅ Добавлены аккаунты в Google Sheets
-9. ✅ Запущен `POST /metrics/collect`
-10. ✅ Проверены результаты в таблице
+2. ✅ Создан Service Account в Google Cloud
+3. ✅ Настроены переменные в `.env` (client_email, private_key)
+4. ✅ Создана Google таблица с доступом для Service Account
+5. ✅ Получен Apify токен
+6. ✅ Запущено приложение: `npm run start:dev`
+7. ✅ Открыт Swagger UI: `http://localhost:3000/api/docs`
+8. ✅ Выполнен `POST /sheets/init`
+9. ✅ Добавлены аккаунты в Google Sheets
+10. ✅ Запущен `POST /metrics/collect`
+11. ✅ Проверены результаты в таблице
 
 ---
 
