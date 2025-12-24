@@ -21,4 +21,20 @@ export interface AccountToTrack {
   accountUrl: string;
   accountName?: string;
   lastChecked?: Date;
+  dateFrom?: Date; // Начальная дата для расчета глобальной метрики
+  dateTo?: Date;   // Конечная дата для расчета глобальной метрики
+}
+
+export interface AccountGlobalMetric {
+  platform: 'tiktok' | 'youtube' | 'youtube-shorts' | 'vk' | 'pinterest' | 'instagram';
+  accountUrl: string;
+  accountName: string;
+  dateFrom: Date;   // Период расчета (начало)
+  dateTo: Date;     // Период расчета (конец)
+  totalViews: number;
+  totalLikes: number;
+  totalComments: number;
+  totalShares: number;
+  videosCount: number; // Количество видео в периоде
+  lastUpdated: Date;
 }

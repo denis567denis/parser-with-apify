@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleSheetsService } from './google-sheets.service';
 import { ApifyParserService } from './apify-parser.service';
 import { AccountToTrack, VideoMetrics } from '../types/video-metrics.interface';
+import { parseDate } from '../utils/date-parser';
 
 @Injectable()
 export class MetricsCollectorService {
@@ -104,11 +105,90 @@ export class MetricsCollectorService {
       // Обновляем время последней проверки
       await this.googleSheetsService.updateLastChecked(account.accountUrl, new Date());
 
+      // После записи метрик платформы, агрегируем глобальную метрику
+      await this.updateAccountGlobalMetric(account);
+
       return videos.length;
     } catch (error) {
       this.logger.error(`Error processing account ${account.accountUrl}`, error);
       throw error;
     }
+  }
+
+  /**
+   * Обновляет глобальную метрику аккаунта
+   */
+  private async updateAccountGlobalMetric(account: AccountToTrack): Promise<void> {
+    try {
+      // Получаем даты для аккаунта (свои или глобальные)
+      const dateFrom = this.getEffectiveDateFrom(account);
+      const dateTo = this.getEffectiveDateTo(account);
+
+      // Если даты не указаны (ни у аккаунта, ни глобально), пропускаем
+      if (!dateFrom || !dateTo) {
+        this.logger.debug(`Skipping global metric for ${account.accountUrl} - no date range specified`);
+        return;
+      }
+
+      this.logger.log(`Aggregating global metrics for ${account.accountUrl}`);
+
+      // Создаем копию аккаунта с эффективными датами
+      const accountWithDates: AccountToTrack = {
+        ...account,
+        dateFrom,
+        dateTo,
+      };
+
+      // Агрегируем метрики
+      const globalMetric = await this.googleSheetsService.aggregateAccountMetrics(accountWithDates);
+
+      if (!globalMetric) {
+        this.logger.warn(`No global metrics to write for ${account.accountUrl}`);
+        return;
+      }
+
+      // Записываем в таблицу Accounts Global Metric
+      await this.googleSheetsService.writeAccountGlobalMetric(globalMetric);
+      this.logger.log(
+        `Global metric updated for ${account.accountUrl}: ` +
+        `${globalMetric.videosCount} videos, ${globalMetric.totalViews} views, ` +
+        `${globalMetric.totalLikes} likes, ${globalMetric.totalComments} comments, ` +
+        `${globalMetric.totalShares} shares`
+      );
+    } catch (error) {
+      this.logger.error(`Failed to update global metric for ${account.accountUrl}`, error);
+      // Не пробрасываем ошибку дальше, чтобы не прерывать сбор метрик
+    }
+  }
+
+  /**
+   * Получает эффективную дату начала для аккаунта
+   * Использует дату аккаунта, если указана, иначе глобальную настройку
+   */
+  private getEffectiveDateFrom(account: AccountToTrack): Date | null {
+    // Сначала пробуем дату аккаунта
+    if (account.dateFrom) {
+      return account.dateFrom;
+    }
+
+    // Затем пробуем глобальную настройку
+    const globalDateFromStr = this.configService.get<string>('globalMetrics.dateFrom', '');
+    return parseDate(globalDateFromStr);
+  }
+
+  /**
+   * Получает эффективную дату окончания для аккаунта
+   * Использует дату аккаунта, если указана, иначе глобальную настройку
+   */
+  private getEffectiveDateTo(account: AccountToTrack): Date | null {
+    // Сначала пробуем дату аккаунта
+    if (account.dateTo) {
+      return account.dateTo;
+    }
+
+    // Затем пробуем глобальную настройку
+    const globalDateToStr = this.configService.get<string>('globalMetrics.dateTo', '');
+    return parseDate(globalDateToStr);
   }
 
   /**

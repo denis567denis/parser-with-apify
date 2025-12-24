@@ -14,4 +14,11 @@ export default () => ({
   limits: {
     videoMax: parseInt(process.env.LIMIT_VIDEO_MAX || '50', 10),
   },
+  globalMetrics: {
+    // Поддержка форматов:
+    // - Абсолютные даты: "2024-01-01" (YYYY-MM-DD)
+    // - Относительные даты: "7d", "30d", "90d" (количество дней назад)
+    dateFrom: process.env.GLOBAL_METRICS_DATE_FROM || '30d',
+    dateTo: process.env.GLOBAL_METRICS_DATE_TO || '0d',
+  },
 });
